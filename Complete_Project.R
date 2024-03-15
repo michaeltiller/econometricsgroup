@@ -117,7 +117,11 @@ tauto_mdaic <- auto.arima(y = tinsample,max.p = 10, max.q = 10,
                             max.d = 10,trace = TRUE,ic = c("bic"),
                             stepwise = TRUE,max.order = 30)
 
+# test of stationarity 
 
+adf.test(tinsample$return)
+pp.test(tinsample$return)
+kpss.test(tinsample$return)
 
 # T CAPM ###
 TModel = lm(Exret ~ Mkt.RF,  data = tdata)
