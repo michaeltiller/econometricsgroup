@@ -64,16 +64,17 @@ stargazer(NVDAModel, APPlModel,AMDModel, MSFTModel, AMZNModel,
 
 ################################# Task 2 ############################################
 
-stocks = c('T', 'BAC', 'AAL', 'TSLA', 'INTC' )
+stocks = c('WBD', 'BAC', 'CSCO', 'TSLA', 'INTC' )
 
 
 ## Process Fama French dataset to get mkt factor and RF
 
-ffactors <- read.csv('C:/Users/micha/Desktop/econometrics group/F-F_Research_Data_Factors_daily.csv')
+ffactors <- read.csv('F-F_Research_Data_Factors_daily.csv')
 ffactors = ffactors %>% select(X, Mkt.RF, RF) %>% rename(Date = X)
 ffactors$Date = as.Date(ffactors$Date, format = "%Y%m%d")
 ffactors$Mkt.RF = ffactors$Mkt.RF/100
 ffactors$RF = ffactors$RF/100
+
 
 
 GetData <- BatchGetSymbols(tickers = stocks,
@@ -95,37 +96,56 @@ finaldata = mergeddata %>% mutate(Exret = return - RF )
 index = floor(nrow(finaldata)*0.7)
 date = finaldata$ref.date[index]
 
-########## T #####
-tdata = finaldata %>% filter(ticker == 'T')
 
 
-tinsample = tdata %>% filter(ref.date <= date) %>% select(return)
-toutofsample = tdata %>% filter(ref.date >= date) %>% select(return)
 
-acfplot <- acf(x = tinsample, plot =FALSE)
-plot(acfplot, main = 'AT & T time series ACF')
-
-pacfplot <- pacf(x = tinsample, plot =FALSE)
-plot(pacfplot, main = 'AT & T time series PACF')
+########## WBD #####
+wbddata = finaldata %>% filter(ticker == 'WBD')
 
 
-tauto_mdaic <- auto.arima(y = tinsample,max.p = 3, max.q = 3,
-                            max.d = 3,trace = TRUE,ic = c("aic"),
-                            stepwise = TRUE,max.order = 9)
+wbdinsample = wbddata %>% filter(ref.date <= date) %>% select(return)
+wbdoutofsample = wbddata %>% filter(ref.date >= date) %>% select(return)
 
-tauto_mdaic <- auto.arima(y = tinsample,max.p = 10, max.q = 10,
-                            max.d = 10,trace = TRUE,ic = c("bic"),
-                            stepwise = TRUE,max.order = 30)
+
+acfplot <- acf(x = wbdinsample, plot =FALSE)
+plot(acfplot, main = 'Warner Brothers time series ACF')
+
+pacfplot <- pacf(x = wbdinsample, plot =FALSE)
+plot(pacfplot, main = 'Warner Brothers time series PACF')
+
+
+wbdauto_mdaic <- auto.arima(y = wbdinsample,max.p = 15, max.q = 15,
+                            max.d = 15,trace = TRUE,ic = c("aic"),
+                            stepwise = FALSE,max.order = 45)
+
+wbdauto_mdbic <- auto.arima(y = wbdinsample,max.p = 15, max.q = 15,
+                            max.d = 15,trace = TRUE,ic = c("bic"),
+                            stepwise = FALSE,max.order = 45)
+
+acf(wbdauto_mdaic$residuals,lag.max = 30)
+
+Box.test(wbdauto_mdaic$residuals,lag = 30,type = "Ljung-Box")
+Box.test(wbdauto_mdbic$residuals,lag = 30,type = "Ljung-Box")
+
+#prediction 
+dim(wbdoutofsample)
+predWBD = predict(object = wbdauto_mdaic, n.ahead = 76)
+
+mean((predWBD$pred - wbdoutofsample$return)^2)
+
+predWBDbic = predict(object = wbdauto_mdbic, n.ahead = 76)
+
+mean((predWBDbic$pred - wbdoutofsample$return)^2)
 
 # test of stationarity 
 
-adf.test(tinsample$return)
-pp.test(tinsample$return)
-kpss.test(tinsample$return)
+adf.test(wbdinsample$return)
+pp.test(wbdinsample$return)
+kpss.test(wbdinsample$return)
 
-# T CAPM ###
-TModel = lm(Exret ~ Mkt.RF,  data = tdata)
-summary(TModel)
+# WBD CAPM ###
+WBDModel = lm(Exret ~ Mkt.RF,  data = wbddata)
+summary(WBDModel)
 
 
 
@@ -158,12 +178,24 @@ bacauto_mdbic <- auto.arima(y = bacinsample,max.p = 10, max.q = 10,
 acf(bacauto_mdaic$residuals,lag.max = 30)
 
 Box.test(bacauto_mdaic$residuals,lag = 30,type = "Ljung-Box")
+Box.test(bacauto_mdbic$residuals,lag = 30,type = "Ljung-Box")
 
-#prediction 
-dim(bacoutofsample)
-predbac = predict(object = bacauto_mdaic, n.ahead = 76)
+ #prediction 
+predBAC = predict(object = bacauto_mdaic, n.ahead = 76)
 
-mean((predbac$pred - bacoutofsample$return)^2)
+mean((predBAC$pred - bacoutofsample$return)^2)
+
+predBACbic = predict(object = bacauto_mdbic, n.ahead = 76)
+
+mean((predBACbic$pred - bacoutofsample$return)^2)
+
+
+adf.test(bacinsample$return)
+pp.test(bacinsample$return)
+kpss.test(bacinsample$return)
+
+
+
 
   
 BACModel = lm(Exret ~ Mkt.RF,  data = bacdata) ## null hypothesis cannot be rejected no, 
@@ -173,30 +205,51 @@ summary(BACModel)
 
 
 
-#### AAL #########
-AALdata = finaldata %>% filter(ticker == 'AAL')
-AALrseries = AALdata$return
+#### CSCO #########
+CSCOdata = finaldata %>% filter(ticker == 'CSCO')
 
 
-acfplot <- acf(x = AALrseries, plot =FALSE)
-plot(acfplot, main = 'American Airlines time series ACF')
+CSCOinsample = CSCOdata %>% filter(ref.date <= date) %>% select(return)
+CSCOoutofsample = CSCOdata %>% filter(ref.date >= date) %>% select(return)
 
-pacfplot <- pacf(x = AALrseries, plot =FALSE)
-plot(pacfplot, main = 'American Airlines time series PACF')  
+acfplot <- acf(x = CSCOinsample, plot =FALSE)
+plot(acfplot, main = 'Cisco time series ACF')
 
-AALauto_mdaic <- auto.arima(y = AALrseries,max.p = 10, max.q = 10,
-                                max.d = 10,trace = TRUE,ic = c("aic"),
-                                stepwise = FALSE,max.order = 30)
+pacfplot <- pacf(x = CSCOinsample, plot =FALSE)
+plot(pacfplot, main = 'Cisco time series PACF')  
 
-AALauto_mdbic <- auto.arima(y = AALrseries,max.p = 10, max.q = 10,
-                            max.d = 10,trace = TRUE,ic = c("bic"),
-                            stepwise = FALSE,max.order = 30)
+CSCOauto_mdaic <- auto.arima(y = CSCOinsample,max.p = 16, max.q = 16,
+                                max.d = 16,trace = TRUE,ic = c("aic"),
+                                stepwise = FALSE,max.order = 48)
+
+CSCOauto_mdbic <- auto.arima(y = CSCOinsample,max.p = 15, max.q = 15,
+                            max.d = 15,trace = TRUE,ic = c("bic"),
+                            stepwise = FALSE,max.order = 45)
+
+
+acf(CSCOauto_mdaic$residuals,lag.max = 30)
+
+Box.test(CSCOauto_mdaic$residuals,lag = 30,type = "Ljung-Box")
+
+
+predCSCO = predict(object = CSCOauto_mdbic, n.ahead = 76)
+
+mean((predCSCO$pred - CSCOoutofsample$return)^2)
+
+predCSCObic = predict(object = bacauto_mdbic, n.ahead = 76)
+
+mean((predCSCObic$pred - bacoutofsample$return)^2)
 
 
 
+adf.test(CSCOinsample$return)
+pp.test(CSCOinsample$return)
+kpss.test(CSCOinsample$return)
 
-AALModel = lm(Exret ~ Mkt.RF,  data = AALdata)
-summary(AALModel)
+
+
+CSCOModel = lm(Exret ~ Mkt.RF,  data = CSCOdata)
+summary(CSCOModel)
 
 #### TSLA ########
 
@@ -226,15 +279,22 @@ TSLAauto_mdbic <- auto.arima(y = TSLAinsample,max.p = 10, max.q = 10,
 acf(TSLAauto_mdaic$residuals,lag.max = 30)
 
 Box.test(TSLAauto_mdaic$residuals,lag = 30,type = "Ljung-Box")
+Box.test(TSLAauto_mdbic$residuals,lag = 30,type = "Ljung-Box")
 
 #prediction 
 dim(TSLAoutofsample)
-predTSLA = predict(object = TSLAauto_mdbic, n.ahead = 76)
+predTSLA = predict(object = TSLAauto_mdaic, n.ahead = 76)
 
 mean((predTSLA$pred - TSLAoutofsample$return)^2)
 
 
+predTSLAbic = predict(object = TSLAauto_mdbic, n.ahead = 76)
 
+mean((predTSLAbic$pred - TSLAoutofsample$return)^2)
+
+adf.test(TSLAdata$return)
+pp.test(TSLAdata$return)
+kpss.test(TSLAdata$return)
 
 
 
@@ -270,14 +330,22 @@ acf(INTCauto_mdaic$residuals,lag.max = 30)
 
 Box.test(INTCauto_mdaic$residuals,lag = 30,type = "Ljung-Box")
 
+Box.test(INTCauto_mdbic$residuals,lag = 30,type = "Ljung-Box")
+
 #prediction 
 dim(TSLAoutofsample)
 predINTC = predict(object = INTCauto_mdaic, n.ahead = 76)
 
 mean((predINTC$pred - INTCoutofsample$return)^2)
 
+predINTCbic = predict(object = INTCauto_mdbic, n.ahead = 76)
+
+mean((predINTCbic$pred - INTCoutofsample$return)^2)
 
 
+adf.test(INTCdata$return)
+pp.test(INTCdata$return)
+kpss.test(INTCdata$return)
 
 
 
@@ -286,10 +354,10 @@ summary(INTCModel)
 
 #### Stargazer table 
 
-stargazer(TModel, BACModel,AALModel, TSLAModel, INTCModel,
-          type = 'html', out = 'C:/Users/micha/Desktop/econometrics group/section2.html', 
+stargazer(WBDModel, BACModel, CSCOModel, TSLAModel, INTCModel,
+          type = 'html', out = '/Users/michael/Desktop/groupeconometrics/section2.html', 
           covariate.labels=c('MKT'), dep.var.labels = 'Excess Return', 
-          column.labels = c('AT&T', 'Bank of America', 'American Airlines', 'Tesla', 'Intel'))
+          column.labels = c('Warner Brothers', 'Bank of America', 'Cisco', 'Tesla', 'Intel'))
 
 #####################################################################################
 
